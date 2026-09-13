@@ -1,7 +1,30 @@
 # YoutubeDownloader (4K)
 
 YouTube 동영상을 **최대 4K(2160p) 화질로 내려받는 데스크톱 다운로더**입니다.
-현재 저장소에는 **설계/계획 초안**만 들어 있으며, 구현은 아직 시작되지 않았습니다.
+
+현재 상태: **M1 코어 엔진 + M2 CLI 동작** (GUI 는 M3 예정)
+
+## 빠른 시작
+
+```bash
+pip install -e ".[dev]"        # 개발 설치
+ytdl4k <URL>                   # 4K 이하 최고 화질로 받기
+```
+
+ffmpeg 이 필요합니다(4K 는 영상·음성이 분리되어 제공되므로 병합 필수).
+설치돼 있지 않으면 경고를 띄우고 영상+음성이 한 파일인 포맷으로 자동 강등됩니다.
+
+```bash
+ytdl4k -F <URL>                        # 받을 수 있는 화질 목록 보기
+ytdl4k -q 1080 -o ~/Videos <URL>       # 화질·저장 위치 지정
+ytdl4k --codec efficiency <URL>        # AV1 우선 (같은 화질에 용량 ↓)
+ytdl4k --container mp4 <URL>           # mp4 강제 (재인코딩 없이 담기는 스트림을 고름)
+ytdl4k --audio-only <URL>              # 오디오만
+ytdl4k --dry-run <URL>                 # 무엇을 받을지만 확인
+ytdl4k --cookies-from-browser chrome <URL>   # 로그인이 필요한 영상
+```
+
+Ctrl+C 로 중단하면 받던 조각(`.part`)을 남겨 두고, 같은 명령을 다시 실행하면 이어받습니다.
 
 ## 문서
 
@@ -10,6 +33,17 @@ YouTube 동영상을 **최대 4K(2160p) 화질로 내려받는 데스크톱 다�
 | [docs/PLAN.md](docs/PLAN.md) | 전체 개발 계획 · 마일스톤 · 일정 · 리스크 |
 | [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | 기능/비기능 요구사항 명세 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 아키텍처 · 모듈 설계 · 데이터 모델 |
+
+## 개발
+
+```bash
+pytest -q                  # 전체 테스트
+pytest -m "not integration"  # 실제 I/O 없이
+ruff check . && ruff format --check .
+```
+
+포맷 선택 로직은 네트워크를 타지 않는 순수 함수라 고정 픽스처(`tests/fixtures/formats_4k.json`)만으로
+전부 검증됩니다. YouTube 사양이 바뀌어도 이 테스트는 계속 유효합니다.
 
 ## 한 줄 요약
 

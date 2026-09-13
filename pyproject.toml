@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ytdl4k"
+version = "0.1.0"
+description = "YouTube 동영상을 최대 4K 화질로 내려받는 데스크톱 다운로더"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "yt-dlp>=2025.1.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+ytdl4k = "ytdl4k.cli.main:main"
+
+[tool.setuptools.packages.find]
+include = ["ytdl4k*"]
+
+[tool.ruff]
+# 한글 문자열은 ruff 가 2칸으로 세므로 100 은 실질적으로 좁다.
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: 실제 I/O 를 수행하는 테스트 (제외하려면 -m 'not integration')",
+    "network: 외부 네트워크가 필요한 테스트 (제외하려면 -m 'not network')",
+]

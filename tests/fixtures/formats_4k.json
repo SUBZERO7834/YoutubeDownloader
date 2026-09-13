@@ -1,0 +1,27 @@
+{
+  "id": "dQw4w9WgXcQ",
+  "title": "샘플 4K 영상",
+  "duration": 600,
+  "uploader": "Sample Channel",
+  "thumbnail": "https://example.invalid/thumb.jpg",
+  "webpage_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "is_live": false,
+  "formats": [
+    {"format_id": "139", "ext": "m4a", "vcodec": "none", "acodec": "mp4a.40.5", "tbr": 48.0, "filesize": 3600000},
+    {"format_id": "140", "ext": "m4a", "vcodec": "none", "acodec": "mp4a.40.2", "tbr": 129.0, "filesize": 9700000},
+    {"format_id": "249", "ext": "webm", "vcodec": "none", "acodec": "opus", "tbr": 51.0, "filesize": 3800000},
+    {"format_id": "251", "ext": "webm", "vcodec": "none", "acodec": "opus", "tbr": 141.0, "filesize": 10600000},
+    {"format_id": "18", "ext": "mp4", "vcodec": "avc1.42001E", "acodec": "mp4a.40.2", "width": 640, "height": 360, "fps": 30, "tbr": 696.0, "dynamic_range": "SDR", "filesize": 52000000},
+    {"format_id": "136", "ext": "mp4", "vcodec": "avc1.4d401f", "acodec": "none", "width": 1280, "height": 720, "fps": 30, "tbr": 1550.0, "dynamic_range": "SDR", "filesize": 116000000},
+    {"format_id": "247", "ext": "webm", "vcodec": "vp09.00.31.08", "acodec": "none", "width": 1280, "height": 720, "fps": 30, "tbr": 1290.0, "dynamic_range": "SDR", "filesize": 96000000},
+    {"format_id": "137", "ext": "mp4", "vcodec": "avc1.640028", "acodec": "none", "width": 1920, "height": 1080, "fps": 30, "tbr": 4200.0, "dynamic_range": "SDR", "filesize": 315000000},
+    {"format_id": "248", "ext": "webm", "vcodec": "vp09.00.40.08", "acodec": "none", "width": 1920, "height": 1080, "fps": 30, "tbr": 2800.0, "dynamic_range": "SDR", "filesize": 210000000},
+    {"format_id": "303", "ext": "webm", "vcodec": "vp09.00.40.08", "acodec": "none", "width": 1920, "height": 1080, "fps": 60, "tbr": 4100.0, "dynamic_range": "SDR", "filesize": 307000000},
+    {"format_id": "308", "ext": "webm", "vcodec": "vp09.00.50.08", "acodec": "none", "width": 2560, "height": 1440, "fps": 60, "tbr": 9500.0, "dynamic_range": "SDR", "filesize": 712000000},
+    {"format_id": "313", "ext": "webm", "vcodec": "vp09.00.50.08", "acodec": "none", "width": 3840, "height": 2160, "fps": 30, "tbr": 13000.0, "dynamic_range": "SDR", "filesize": 975000000},
+    {"format_id": "315", "ext": "webm", "vcodec": "vp09.00.51.08", "acodec": "none", "width": 3840, "height": 2160, "fps": 60, "tbr": 19000.0, "dynamic_range": "SDR", "filesize": 1425000000},
+    {"format_id": "337", "ext": "webm", "vcodec": "vp09.02.51.10.01.09.16.09", "acodec": "none", "width": 3840, "height": 2160, "fps": 60, "tbr": 21000.0, "dynamic_range": "HDR10", "filesize": 1575000000},
+    {"format_id": "401", "ext": "mp4", "vcodec": "av01.0.12M.08", "acodec": "none", "width": 3840, "height": 2160, "fps": 60, "tbr": 12500.0, "dynamic_range": "SDR", "filesize": 937000000},
+    {"format_id": "272", "ext": "webm", "vcodec": "vp09.00.51.08", "acodec": "none", "width": 7680, "height": 4320, "fps": 60, "tbr": 42000.0, "dynamic_range": "SDR", "filesize": 3150000000}
+  ]
+}

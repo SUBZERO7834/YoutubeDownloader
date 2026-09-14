@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -131,9 +132,13 @@ def test_self_check_reports_components(monkeypatch, capsys, tmp_path):
     from ytdl4k.cli.main import self_check
 
     exe = tmp_path / "ffmpeg"
-    exe.write_text("#!/bin/sh\necho 'ffmpeg version 7.0.2-static'\n")
-    exe.chmod(0o755)
+    exe.write_text("")
     monkeypatch.setattr("ytdl4k.cli.main.find_ffmpeg", lambda loc=None: FfmpegTools(exe, None))
+    # 실제로 실행하면 플랫폼마다 결과가 다르다(윈도우는 셸 스크립트를 못 띄운다).
+    monkeypatch.setattr(
+        "ytdl4k.cli.main.subprocess.run",
+        lambda *a, **kw: subprocess.CompletedProcess(a, 0, "ffmpeg version 7.0.2-static\n", ""),
+    )
     assert self_check() == 0
     out = capsys.readouterr().out
     assert "ytdl4k" in out and "yt-dlp" in out and str(exe) in out

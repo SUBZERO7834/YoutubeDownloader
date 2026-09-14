@@ -94,7 +94,19 @@ def _select_audio_only(info: VideoInfo, target: DownloadTarget) -> Selection:
             hint="영상까지 받은 뒤 오디오를 추출해야 할 수 있습니다.",
         )
     audio = max(audios, key=lambda f: (target.codec_policy.audio_rank(f.audio_codec), f.tbr or 0))
-    return Selection(video=None, audio=audio, container=audio.ext or "m4a")
+    return Selection(video=None, audio=audio, container=_audio_container(audio))
+
+
+def _audio_container(audio: VideoFormat) -> str:
+    """오디오 전용 파일의 확장자.
+
+    내용물이 같아도 .mp4 로 저장하면 음악 앱·플레이어가 영상으로 다루는 경우가 있다.
+    AAC 는 .m4a 로 내보내는 것이 관례다.
+    """
+    ext = (audio.ext or "").lower()
+    if ext in ("mp4", "m4a") or audio.audio_codec == "mp4a":
+        return "m4a"
+    return ext or "webm"
 
 
 def _best_audio(info: VideoInfo, target: DownloadTarget, video: VideoFormat) -> VideoFormat | None:
@@ -145,7 +157,7 @@ def pick_container(video: VideoFormat | None, audio: VideoFormat | None, target:
     mkv 가 마지막 안전망이 된다.
     """
     if video is None:
-        return (audio.ext if audio else "m4a") or "m4a"
+        return _audio_container(audio) if audio else "m4a"
     if target.container is Container.MP4:
         return "mp4"
     if target.container is Container.MKV:

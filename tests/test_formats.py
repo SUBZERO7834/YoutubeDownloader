@@ -78,6 +78,13 @@ def test_audio_only(info_4k):
     assert sel.container == "webm"
 
 
+def test_audio_only_aac_is_saved_as_m4a(info_4k):
+    """AAC 를 .mp4 로 저장하면 음악 앱이 영상으로 다룬다."""
+    sel = select(info_4k, DownloadTarget(audio_only=True, codec_policy=CodecPolicy.COMPATIBILITY))
+    assert sel.audio.audio_codec == "mp4a"
+    assert sel.container == "m4a"
+
+
 def test_audio_only_compatibility_picks_aac(info_4k):
     sel = select(info_4k, DownloadTarget(audio_only=True, codec_policy=CodecPolicy.COMPATIBILITY))
     assert sel.audio.format_id == "140"

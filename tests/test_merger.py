@@ -1,10 +1,13 @@
+import sys
 from pathlib import Path
 
 from ytdl4k.core.merger import FfmpegTools, find_ffmpeg, verify_output
 
+EXE = ".exe" if sys.platform == "win32" else ""  # 윈도우는 확장자가 있어야 실행 파일이다
+
 
 def test_find_ffmpeg_accepts_explicit_file(tmp_path):
-    exe = tmp_path / "ffmpeg"
+    exe = tmp_path / f"ffmpeg{EXE}"
     exe.write_text("#!/bin/sh\n")
     tools = find_ffmpeg(exe)
     assert tools is not None and tools.ffmpeg == exe
@@ -12,10 +15,10 @@ def test_find_ffmpeg_accepts_explicit_file(tmp_path):
 
 
 def test_find_ffmpeg_accepts_directory_and_finds_ffprobe(tmp_path):
-    (tmp_path / "ffmpeg").write_text("")
-    (tmp_path / "ffprobe").write_text("")
+    (tmp_path / f"ffmpeg{EXE}").write_text("")
+    (tmp_path / f"ffprobe{EXE}").write_text("")
     tools = find_ffmpeg(tmp_path)
-    assert tools.ffprobe == tmp_path / "ffprobe"
+    assert tools.ffprobe == tmp_path / f"ffprobe{EXE}"
 
 
 def test_find_ffmpeg_returns_none_when_absent(tmp_path, monkeypatch):

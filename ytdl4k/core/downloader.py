@@ -103,6 +103,8 @@ class Downloader:
         if path is None:
             raise DownloadFailed("결과 파일 경로를 확인하지 못했습니다.")
 
+        path = _apply_audio_extension(path, selection)
+
         if self.ffmpeg is not None:
             problems = verify_output(
                 path,
@@ -197,6 +199,29 @@ class Downloader:
             return guess
         matches = sorted(guess.parent.glob(f"{glob_escape(guess.stem)}.*"))
         return matches[0] if matches else None
+
+
+# .m4a 와 .mp4 는 같은 ISO BMFF 컨테이너다. 확장자만 바꿔도 내용은 그대로다.
+_SAME_CONTAINER = {("mp4", "m4a"), ("m4a", "mp4")}
+
+
+def _apply_audio_extension(path: Path, selection: Selection) -> Path:
+    """오디오 전용 파일의 확장자를 선택 결과에 맞춘다.
+
+    yt-dlp 는 병합할 때만 컨테이너 지정을 쓰므로, 스트림이 하나면 포맷의 원래
+    확장자(.mp4)로 저장된다. AAC 오디오는 .m4a 로 두는 편이 플레이어·음악 앱에
+    친절하다. 컨테이너가 동일한 경우에만 이름을 바꾸고, 다르면 손대지 않는다.
+    """
+    if selection.video is not None or selection.audio is None:
+        return path
+    current = path.suffix.lstrip(".").lower()
+    if current == selection.container or (current, selection.container) not in _SAME_CONTAINER:
+        return path
+    renamed = path.with_suffix(f".{selection.container}")
+    if renamed.exists():
+        return path
+    path.rename(renamed)
+    return renamed
 
 
 def glob_escape(text: str) -> str:

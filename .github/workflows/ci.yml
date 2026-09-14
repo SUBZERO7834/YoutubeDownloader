@@ -7,10 +7,14 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        # 윈도우를 여기서 돌리지 않으면 경로 구분자·인코딩·실행 권한 같은
+        # 플랫폼 차이가 릴리스 빌드에 가서야 드러난다 (실제로 그랬다).
+        os: [ubuntu-latest, windows-latest]
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +26,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
       - name: 린트
+        if: matrix.os == 'ubuntu-latest'
         run: |
           ruff check .
           ruff format --check .

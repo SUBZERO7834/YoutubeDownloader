@@ -116,6 +116,7 @@ YouTube는 화질별로 스트림을 이렇게 제공합니다.
 - [x] PyInstaller 단일 실행 파일 + ffmpeg 번들 (`scripts/build.py`, 약 43MB)
 - [x] static ffmpeg 확보 스크립트 + **왕복 건전성 검사** (`scripts/fetch_ffmpeg.py`)
 - [x] GitHub Actions 3종(win/mac/linux) 빌드 · 태그 시 릴리스 첨부 (`.github/workflows/release.yml`)
+      — 세 플랫폼 모두 빌드·자가 진단 통과 확인 (Windows 86.8MB / macOS 65.3MB / Linux 83.7MB)
 - [x] `--self-check` 진단 (yt-dlp·ffmpeg 이 실제로 잡히는지)
 - [ ] 코드 서명 (Windows SmartScreen·macOS Gatekeeper 경고 제거)
 - [ ] 앱 내 yt-dlp 자동 업데이트 채널
@@ -157,6 +158,20 @@ YouTube는 화질별로 스트림을 이렇게 제공합니다.
 | HDR 은 옵션으로 우대 | **양방향 선호** — 요청 안 하면 SDR 우대 | HDR 스트림이 비트레이트가 높아 가만히 두면 자동 선택된다. SDR 화면에서 색이 바래 보인다 (테스트가 잡아냄) |
 | 오류는 추출 실패로 일괄 처리 | 네트워크 오류를 별도 분리 | 연결 실패를 "YouTube 사양 변경" 으로 안내하면 사용자가 엉뚱한 곳을 고친다 (실행 중 발견) |
 | ffmpeg 은 받아서 넣으면 끝 | **왕복 먹싱·디먹싱 검사**를 거쳐야 채택 | PyPI 경유 static 빌드 7.0.2 가 MPEG-TS 입력에서 세그폴트했다. 먹싱은 멀쩡해서 `-version` 확인만으로는 안 드러난다 (아래 참고) |
+
+### 플랫폼 차이는 CI 에서 잡는다
+
+초기에는 CI 가 Ubuntu 만 돌렸고, 그 결과 윈도우 전용 문제 여섯 가지가 릴리스
+빌드 단계에 가서야 드러났다. 지금은 CI 매트릭스에 windows-latest 를 넣었다.
+
+| 문제 | 성격 |
+| --- | --- |
+| 경로 구분자를 `/` 로 가정한 단언 | 테스트 |
+| 확장자 없는 `ffmpeg` 파일로 탐색 시험 | 테스트 (윈도우는 `.exe` 를 찾는 게 맞다) |
+| 셸 스크립트를 만들어 실행 | 테스트 |
+| **출력 리다이렉트 시 한글·기호에서 UnicodeEncodeError** | **제품 결함** — `ytdl4k -F URL > list.txt` 가 죽는다 |
+| POSIX 실행 권한 비트 검사 | 테스트 |
+| 스모크 테스트가 stdout=None 에서 죽음 | 빌드 스크립트 |
 
 ### ffmpeg 빌드 선정 주의
 

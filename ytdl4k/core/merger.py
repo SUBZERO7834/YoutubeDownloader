@@ -13,13 +13,26 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 from .errors import FfmpegNotFound
 
-# PyInstaller 로 묶을 때 여기에 플랫폼별 바이너리가 들어간다.
-_BUNDLE_DIR = Path(__file__).resolve().parent.parent / "resources" / "ffmpeg"
+
+def _bundle_dir() -> Path:
+    """번들된 ffmpeg 이 있는 폴더.
+
+    PyInstaller 로 묶이면 리소스는 소스 트리가 아니라 실행 시 풀리는
+    임시 폴더(``sys._MEIPASS``) 아래에 놓인다. 이 차이를 여기서 흡수한다.
+    """
+    if getattr(sys, "frozen", False):
+        root = Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent))
+        return root / "resources" / "ffmpeg"
+    return Path(__file__).resolve().parent.parent / "resources" / "ffmpeg"
+
+
+_BUNDLE_DIR = _bundle_dir()
 
 
 @dataclass(frozen=True)
@@ -59,8 +72,6 @@ def require_ffmpeg(explicit: str | Path | None = None) -> FfmpegTools:
 
 
 def _exe(name: str) -> str:
-    import sys
-
     return f"{name}.exe" if sys.platform == "win32" else name
 
 

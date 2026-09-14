@@ -44,3 +44,19 @@ def test_verify_output_detects_missing_audio_track(tmp_path, monkeypatch):
     monkeypatch.setattr("ytdl4k.core.merger.probe_streams", lambda path, tools: [{"codec_type": "video"}])
     problems = verify_output(out, tools, expect_video=True, expect_audio=True)
     assert problems and "음성 트랙이 없습니다" in problems[0]
+
+
+def test_bundle_dir_follows_pyinstaller_unpack_root(monkeypatch, tmp_path):
+    """PyInstaller 로 묶이면 리소스는 _MEIPASS 아래에 풀린다."""
+    from ytdl4k.core import merger
+
+    monkeypatch.setattr(merger.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(merger.sys, "_MEIPASS", str(tmp_path), raising=False)
+    assert merger._bundle_dir() == tmp_path / "resources" / "ffmpeg"
+
+
+def test_bundle_dir_uses_source_tree_when_not_frozen(monkeypatch):
+    from ytdl4k.core import merger
+
+    monkeypatch.delattr(merger.sys, "frozen", raising=False)
+    assert merger._bundle_dir().parts[-3:] == ("ytdl4k", "resources", "ffmpeg")

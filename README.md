@@ -2,7 +2,27 @@
 
 YouTube 동영상을 **최대 4K(2160p) 화질로 내려받는 데스크톱 다운로더**입니다.
 
-현재 상태: **M1 코어 엔진 + M2 CLI 동작** (GUI 는 M3 예정)
+현재 상태: **단일 실행 파일 동작** (M1 코어 · M2 CLI · M5 패키징) — GUI 는 M3 예정
+
+## 실행 파일 받기
+
+빌드된 실행 파일은 GitHub Actions 에서 받습니다 — 저장소의 **Actions → 실행 파일 빌드**
+→ 최근 실행 → Artifacts 에 세 가지가 올라옵니다.
+
+| 파일 | 플랫폼 |
+| --- | --- |
+| `ytdl4k-windows-x86_64.exe` | Windows 10+ |
+| `ytdl4k-macos-arm64` | macOS (Apple Silicon) |
+| `ytdl4k-linux-x86_64` | Linux |
+
+Python 도 ffmpeg 도 따로 설치할 필요가 없습니다 — 하나의 파일에 다 들어 있습니다.
+받은 뒤 제대로 준비됐는지 확인하려면:
+
+```
+ytdl4k --self-check
+```
+
+macOS/Linux 에서는 첫 실행 전에 `chmod +x ytdl4k` 가 필요합니다.
 
 ## 빠른 시작
 
@@ -37,10 +57,23 @@ Ctrl+C 로 중단하면 받던 조각(`.part`)을 남겨 두고, 같은 명령�
 ## 개발
 
 ```bash
-pytest -q                  # 전체 테스트
+pytest -q                    # 전체 테스트
 pytest -m "not integration"  # 실제 I/O 없이
 ruff check . && ruff format --check .
 ```
+
+### 직접 빌드하기
+
+```bash
+python scripts/fetch_ffmpeg.py     # static ffmpeg 을 리소스에 채운다
+python scripts/build.py            # → dist/ytdl4k (약 43MB, 단일 파일)
+```
+
+`fetch_ffmpeg.py` 는 받은 ffmpeg 으로 mp4/webm/mkv/ts **왕복 먹싱·디먹싱 검사**를 돌린다.
+`-version` 만 확인하면 특정 컨테이너에서 죽는 빌드를 그대로 배포하게 되기 때문이다
+(실제로 PyPI 경유 static 빌드 7.0.2 는 MPEG-TS 입력에서 세그폴트한다).
+
+PyPI 만 열린 환경에서는 `--from-pypi`, 이미 받아 둔 바이너리가 있으면 `--from-path DIR` 을 쓴다.
 
 포맷 선택 로직은 네트워크를 타지 않는 순수 함수라 고정 픽스처(`tests/fixtures/formats_4k.json`)만으로
 전부 검증됩니다. YouTube 사양이 바뀌어도 이 테스트는 계속 유효합니다.

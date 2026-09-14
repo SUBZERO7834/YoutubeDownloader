@@ -124,3 +124,38 @@ def test_warns_when_ffmpeg_missing(monkeypatch, capsys, info_4k):
     captured = capsys.readouterr()
     assert "ffmpeg" in captured.err
     assert "360p" in captured.out  # 병합이 불가능하면 progressive 로 내려간다
+
+
+def test_self_check_reports_components(monkeypatch, capsys, tmp_path):
+    from ytdl4k.cli.main import self_check
+
+    exe = tmp_path / "ffmpeg"
+    exe.write_text("#!/bin/sh\necho 'ffmpeg version 7.0.2-static'\n")
+    exe.chmod(0o755)
+    monkeypatch.setattr("ytdl4k.cli.main.find_ffmpeg", lambda loc=None: FfmpegTools(exe, None))
+    assert self_check() == 0
+    out = capsys.readouterr().out
+    assert "ytdl4k" in out and "yt-dlp" in out and str(exe) in out
+    assert "7.0.2-static" in out  # ffmpeg 을 실제로 실행해 버전을 읽는다
+
+
+def test_self_check_fails_without_ffmpeg(monkeypatch, capsys):
+    from ytdl4k.cli.main import self_check
+
+    monkeypatch.setattr("ytdl4k.cli.main.find_ffmpeg", lambda loc=None: None)
+    assert self_check() == 1
+    assert "찾지 못함" in capsys.readouterr().out
+
+
+def test_broken_pipe_is_swallowed(monkeypatch):
+    """`ytdl4k -F URL | head` 로 파이프가 끊겨도 트레이스백을 뱉지 않는다.
+
+    실제 ``os.dup2`` 는 pytest 의 출력 캡처 fd 를 덮어써 버리므로 가로챈다.
+    """
+    import ytdl4k.cli.main as cli
+
+    redirected = []
+    monkeypatch.setattr(cli, "_run", lambda args: (_ for _ in ()).throw(BrokenPipeError()))
+    monkeypatch.setattr(cli.os, "dup2", lambda *a: redirected.append(a))
+    assert main(["-F", "https://youtu.be/x"]) == 0
+    assert redirected, "남은 출력을 /dev/null 로 돌리지 않았습니다"

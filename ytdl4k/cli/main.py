@@ -11,7 +11,10 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import os
 import signal
+import subprocess
 import sys
 import threading
 import time
@@ -67,8 +70,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--cookies", help="쿠키 파일 경로")
     p.add_argument("--ffmpeg-location", help="ffmpeg 실행 파일 또는 폴더 경로")
     p.add_argument("--dry-run", action="store_true", help="선택 결과만 보고 받지 않기")
+    p.add_argument(
+        "--self-check", action="store_true", help="구성 진단: yt-dlp·ffmpeg 이 제대로 잡히는지 확인"
+    )
     p.add_argument("--version", action="version", version=f"ytdl4k {__version__}")
     return p
+
+
+def say(text: str = "") -> None:
+    """정보 출력.
+
+    진행률은 stderr 를 ``\r`` 로 덮어쓰며 갱신된다. stdout 이 버퍼링되면
+    두 흐름의 순서가 뒤엉키므로(파이프로 넘길 때 특히) 매번 flush 한다.
+    """
+    print(text, flush=True)
 
 
 def parse_quality(value: str) -> int | None:
@@ -80,8 +95,53 @@ def parse_quality(value: str) -> int | None:
     return int(digits)
 
 
+def self_check(ffmpeg_location: str | None = None) -> int:
+    """구성 진단.
+
+    실행 파일로 묶고 나면 '왜 4K 가 안 되지' 의 원인은 대개 둘 중 하나다 —
+    yt-dlp 가 안 딸려 왔거나, ffmpeg 을 못 찾거나. 그 둘을 바로 보여 준다.
+    """
+    say(f"ytdl4k        {__version__}")
+    say(f"Python        {sys.version.split()[0]}")
+    say(f"실행 형태     {'단일 실행 파일 (PyInstaller)' if getattr(sys, 'frozen', False) else '소스'}")
+
+    try:
+        import yt_dlp
+
+        say(f"yt-dlp        {yt_dlp.version.__version__}")
+    except ImportError as exc:
+        say(f"yt-dlp        ✗ 불러오지 못했습니다 ({exc})")
+        return 1
+
+    tools = find_ffmpeg(ffmpeg_location)
+    if tools is None:
+        say("ffmpeg        ✗ 찾지 못함 — 1080p 초과 화질을 받을 수 없습니다")
+        return 1
+
+    version = subprocess.run([str(tools.ffmpeg), "-version"], capture_output=True, text=True, check=False)
+    first_line = version.stdout.splitlines()[0] if version.stdout else "(버전 확인 실패)"
+    say(f"ffmpeg        {tools.ffmpeg}")
+    say(f"              {first_line}")
+    say(f"ffprobe       {tools.ffprobe or '없음 — 병합은 되지만 결과 트랙 검증은 생략'}")
+    say("\n4K 다운로드에 필요한 구성이 모두 준비됐습니다.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    try:
+        return _run(build_parser().parse_args(argv))
+    except BrokenPipeError:
+        # `ytdl4k -F URL | head` 처럼 받는 쪽이 먼저 닫은 경우다.
+        # 남은 출력을 버려 종료 시점에 트레이스백이 다시 뜨는 것을 막는다.
+        # stdout 이 파일 디스크립터가 없는 객체(테스트 캡처 등)일 수도 있다.
+        with contextlib.suppress(OSError, ValueError):
+            os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        return 0
+
+
+def _run(args: argparse.Namespace) -> int:
+    if args.self_check:
+        return self_check(args.ffmpeg_location)
     if not args.urls:
         build_parser().print_help()
         return 2
@@ -119,7 +179,7 @@ def main(argv: list[str] | None = None) -> int:
 def _handle_url(url, args, target, extractor, ffmpeg) -> int:
     print(f"· 정보를 읽는 중… {url}", file=sys.stderr)
     info = extractor.extract(url)
-    print(f"  {info.title}" + (f"  ({_hms(info.duration)})" if info.duration else ""))
+    say(f"  {info.title}" + (f"  ({_hms(info.duration)})" if info.duration else ""))
 
     if args.list_formats:
         _print_formats(info)
@@ -128,7 +188,7 @@ def _handle_url(url, args, target, extractor, ffmpeg) -> int:
     selection = select(info, target, can_merge=ffmpeg is not None)
     size = selection.estimated_size(info.duration)
     size_text = f"  약 {size / 2**20:.0f}MB" if size else ""
-    print(f"  선택: {selection.describe()}{size_text}")
+    say(f"  선택: {selection.describe()}{size_text}")
 
     if target.max_height and selection.height and selection.height < target.max_height:
         print(f"  ! {target.max_height}p 가 없어 {selection.height}p 로 받습니다.", file=sys.stderr)
@@ -151,24 +211,24 @@ def _handle_url(url, args, target, extractor, ffmpeg) -> int:
     with _sigint_to(cancel):
         path = downloader.download(info, selection, cancel_event=cancel)
     reporter.finish()
-    print(f"✓ 저장 완료: {path}")
+    say(f"✓ 저장 완료: {path}")
     return 0
 
 
 def _print_formats(info: VideoInfo) -> None:
-    print(f"\n  {'화질':<16} {'코덱':<8} {'ID':<8} {'용량':>10}")
-    print(f"  {'-' * 46}")
+    say(f"\n  {'화질':<16} {'코덱':<8} {'ID':<8} {'용량':>10}")
+    say(f"  {'-' * 46}")
     for f in list_downloadable(info):
         size = f.estimated_size(info.duration)
         size_text = f"{size / 2**20:.0f}MB" if size else "-"
         kind = "" if f.is_combined else " (음성 별도)"
-        print(
+        say(
             f"  {(f.describe().split()[0] + kind):<16} {f.video_codec or '-':<8} "
             f"{f.format_id:<8} {size_text:>10}"
         )
     audios = sorted(info.audio_formats, key=lambda f: f.tbr or 0, reverse=True)
     if audios:
-        print("\n  오디오: " + ", ".join(f"{a.describe()} ({a.format_id})" for a in audios[:4]))
+        say("\n  오디오: " + ", ".join(f"{a.describe()} ({a.format_id})" for a in audios[:4]))
 
 
 class _ProgressReporter:

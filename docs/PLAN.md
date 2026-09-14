@@ -112,10 +112,13 @@ YouTube는 화질별로 스트림을 이렇게 제공합니다.
 - [ ] 챕터 정보 임베드
 - [ ] SponsorBlock 연동(선택)
 
-### M5 — 배포 (1주)
-- [ ] PyInstaller 빌드 3종(win/mac/linux) + ffmpeg 번들
-- [ ] GitHub Actions 릴리스 자동화, 코드 서명은 후순위
-- [ ] 앱 내 yt-dlp 자동 업데이트 채널 ★ (아래 리스크 참고)
+### M5 — 배포 (1주) — CLI 기준 완료
+- [x] PyInstaller 단일 실행 파일 + ffmpeg 번들 (`scripts/build.py`, 약 43MB)
+- [x] static ffmpeg 확보 스크립트 + **왕복 건전성 검사** (`scripts/fetch_ffmpeg.py`)
+- [x] GitHub Actions 3종(win/mac/linux) 빌드 · 태그 시 릴리스 첨부 (`.github/workflows/release.yml`)
+- [x] `--self-check` 진단 (yt-dlp·ffmpeg 이 실제로 잡히는지)
+- [ ] 코드 서명 (Windows SmartScreen·macOS Gatekeeper 경고 제거)
+- [ ] 앱 내 yt-dlp 자동 업데이트 채널
 
 **합계 약 6.5주 (1인 기준).** 순서는 M1 → M2 → M3이 핵심 경로이고, M4는 병렬 진행 가능.
 
@@ -153,6 +156,23 @@ YouTube는 화질별로 스트림을 이렇게 제공합니다.
 | 병합을 직접 구현 | yt-dlp 에 위임, `merger.py` 는 탐색·검증 담당 | 검증된 경로를 다시 만들 이유가 없다. 대신 '소리 없는 4K 파일' 을 잡는 결과 검증을 추가 |
 | HDR 은 옵션으로 우대 | **양방향 선호** — 요청 안 하면 SDR 우대 | HDR 스트림이 비트레이트가 높아 가만히 두면 자동 선택된다. SDR 화면에서 색이 바래 보인다 (테스트가 잡아냄) |
 | 오류는 추출 실패로 일괄 처리 | 네트워크 오류를 별도 분리 | 연결 실패를 "YouTube 사양 변경" 으로 안내하면 사용자가 엉뚱한 곳을 고친다 (실행 중 발견) |
+| ffmpeg 은 받아서 넣으면 끝 | **왕복 먹싱·디먹싱 검사**를 거쳐야 채택 | PyPI 경유 static 빌드 7.0.2 가 MPEG-TS 입력에서 세그폴트했다. 먹싱은 멀쩡해서 `-version` 확인만으로는 안 드러난다 (아래 참고) |
+
+### ffmpeg 빌드 선정 주의
+
+배포 후보 ffmpeg 은 **왕복 검사**(`scripts/fetch_ffmpeg.py`)를 통과해야 한다.
+컨테이너별로 실제 쓰는 코덱 조합으로 파일을 만들고 다시 읽어 본다.
+
+| 컨테이너 | 쓰이는 곳 | PyPI static 7.0.2 |
+| --- | --- | --- |
+| mp4 (h264+aac) | DASH 병합 — **YouTube 4K 의 기본 경로** | 정상 |
+| webm (vp8/9+opus) | VP9/Opus 병합 | 정상 |
+| mkv | 혼합 코덱 병합 | 정상 |
+| mpegts | HLS·라이브 스트림 | **세그폴트** |
+
+즉 PyPI 폴백 빌드로도 YouTube 4K 다운로드는 문제없지만, 라이브 스트림 지원(P2)을
+넣을 때는 다른 빌드가 필요하다. 릴리스 워크플로는 공식 static 빌드를 우선 쓰고
+그게 막혔을 때만 PyPI 로 폴백한다.
 
 ## 8. 다음 단계
 
@@ -160,3 +180,4 @@ YouTube는 화질별로 스트림을 이렇게 제공합니다.
 2. GUI 프레임워크 최종 확정 (PySide6 vs Tauri)
 3. M2 잔여: 재생목록 확장, 설정 파일
 4. M3 GUI 진입 — 큐(`app/queue.py`)부터
+5. 코드 서명 — 서명 없는 실행 파일은 Windows SmartScreen·macOS Gatekeeper 가 막는다

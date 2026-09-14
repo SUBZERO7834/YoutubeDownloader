@@ -1,0 +1,74 @@
+name: 실행 파일 빌드
+
+on:
+  workflow_dispatch:          # Actions 탭에서 수동 실행
+  push:
+    tags: ["v*"]              # 태그를 밀면 릴리스까지
+
+permissions:
+  contents: write             # 태그 빌드에서 릴리스 생성에 필요
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: Linux (x86_64)
+            asset: ytdl4k-linux-x86_64
+            built: dist/ytdl4k
+          - os: windows-latest
+            label: Windows (x86_64)
+            asset: ytdl4k-windows-x86_64.exe
+            built: dist/ytdl4k.exe
+          - os: macos-latest
+            label: macOS (Apple Silicon)
+            asset: ytdl4k-macos-arm64
+            built: dist/ytdl4k
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 의존성 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" pyinstaller
+
+      - name: 테스트
+        run: pytest -q
+
+      - name: ffmpeg 준비
+        shell: bash
+        # 반드시 static 빌드여야 한다. 러너에 깔린 ffmpeg 은 동적 링크라
+        # 함께 묶어도 다른 PC 에서 공유 라이브러리를 못 찾아 실패한다.
+        run: |
+          python scripts/fetch_ffmpeg.py || python scripts/fetch_ffmpeg.py --from-pypi
+
+      - name: 빌드
+        run: python scripts/build.py
+
+      - name: 이름 정리
+        shell: bash
+        run: |
+          mkdir -p out
+          cp "${{ matrix.built }}" "out/${{ matrix.asset }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: out/${{ matrix.asset }}
+          if-no-files-found: error
+
+      - name: 릴리스에 첨부 (태그 빌드만)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${GITHUB_REF_NAME}" "out/${{ matrix.asset }}" --clobber

@@ -58,8 +58,9 @@ class LoginRequired(AppError):
     def __init__(self, detail: str = "") -> None:
         super().__init__(
             "로그인이 필요한 영상입니다.",
-            hint="브라우저 쿠키를 연결해 주세요. 예: --cookies-from-browser chrome"
-            + (f"\n원본 오류: {detail}" if detail else ""),
+            hint="연령 제한·멤버십 영상은 로그인한 브라우저의 쿠키가 필요합니다. "
+            "화면에서는 '로그인' 에서 브라우저를 고르고, 명령줄에서는 "
+            "--cookies-from-browser chrome 처럼 지정하세요." + (f"\n원본 오류: {detail}" if detail else ""),
         )
 
 

@@ -75,6 +75,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--self-check", action="store_true", help="구성 진단: yt-dlp·ffmpeg 이 제대로 잡히는지 확인"
     )
+    p.add_argument("--gui", action="store_true", help="창 화면으로 실행")
     p.add_argument("--version", action="version", version=f"ytdl4k {__version__}")
     return p
 
@@ -95,6 +96,19 @@ def parse_quality(value: str) -> int | None:
     if not digits.isdigit():
         raise SystemExit(f"화질 값을 이해하지 못했습니다: {value} (예: best, 2160, 1080)")
     return int(digits)
+
+
+def launch_gui() -> int:
+    """창 화면을 띄운다. PySide6 는 CLI 전용 설치에는 없을 수 있다."""
+    try:
+        from ..gui import run
+    except ImportError as exc:
+        print(
+            f"창 화면을 띄우려면 PySide6 가 필요합니다: pip install PySide6\n원본 오류: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+    return run()
 
 
 def self_check(ffmpeg_location: str | None = None) -> int:
@@ -143,6 +157,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _run(args: argparse.Namespace) -> int:
+    if args.gui:
+        return launch_gui()
     if args.self_check:
         return self_check(args.ffmpeg_location)
     if not args.urls:

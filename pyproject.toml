@@ -14,13 +14,20 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+gui = [
+    "PySide6-Essentials>=6.6",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
+    "PySide6-Essentials>=6.6",   # GUI 테스트용 — 없으면 해당 테스트는 건너뛴다
 ]
 
 [project.scripts]
 ytdl4k = "ytdl4k.cli.main:main"
+
+[project.gui-scripts]
+ytdl4k-gui = "ytdl4k.gui.app:run"
 
 [tool.setuptools.packages.find]
 include = ["ytdl4k*"]

@@ -2,18 +2,24 @@
 
 YouTube 동영상을 **최대 4K(2160p) 화질로 내려받는 데스크톱 다운로더**입니다.
 
-현재 상태: **단일 실행 파일 동작** (M1 코어 · M2 CLI · M5 패키징) — GUI 는 M3 예정
+현재 상태: **창 화면(GUI)까지 동작** — M1 코어 · M2 CLI · M3 GUI · M5 패키징
 
 ## 실행 파일 받기
 
 빌드된 실행 파일은 GitHub Actions 에서 받습니다 — 저장소의 **Actions → 실행 파일 빌드**
 → 최근 실행 → Artifacts 에 세 가지가 올라옵니다.
 
-| 파일 | 플랫폼 |
-| --- | --- |
-| `ytdl4k-windows-x86_64.exe` | Windows 10+ |
-| `ytdl4k-macos-arm64` | macOS (Apple Silicon) |
-| `ytdl4k-linux-x86_64` | Linux |
+| 파일 | 플랫폼 | 형태 |
+| --- | --- | --- |
+| `ytdl4k-gui-windows-x86_64` | Windows 10+ | 창 화면 (폴더, 압축 해제 후 실행) |
+| `ytdl4k-gui-macos-arm64` | macOS (Apple Silicon) | 창 화면 |
+| `ytdl4k-gui-linux-x86_64` | Linux | 창 화면 |
+| `ytdl4k-windows-x86_64.exe` | Windows 10+ | 명령줄 (단일 파일) |
+| `ytdl4k-macos-arm64` | macOS (Apple Silicon) | 명령줄 |
+| `ytdl4k-linux-x86_64` | Linux | 명령줄 |
+
+창 화면은 폴더째 묶여 있습니다. 단일 파일로 만들면 실행할 때마다 200MB 가 넘는 내용을
+푸느라 뜨는 데 몇 초씩 걸리기 때문입니다. 압축을 풀고 안의 `ytdl4k-gui` 를 실행하세요.
 
 Python 도 ffmpeg 도 따로 설치할 필요가 없습니다 — 하나의 파일에 다 들어 있습니다.
 받은 뒤 제대로 준비됐는지 확인하려면:
@@ -27,9 +33,17 @@ macOS/Linux 에서는 첫 실행 전에 `chmod +x ytdl4k` 가 필요합니다.
 ## 빠른 시작
 
 ```bash
-pip install -e ".[dev]"        # 개발 설치
-ytdl4k <URL>                   # 4K 이하 최고 화질로 받기
+pip install -e ".[gui]"        # 창 화면까지 설치
+ytdl4k-gui                     # 창 화면 실행 (ytdl4k --gui 도 같다)
+ytdl4k <URL>                   # 명령줄로 4K 이하 최고 화질 받기
 ```
+
+### 창 화면
+
+주소를 붙여넣고 화질을 고른 뒤 `받기` 를 누르면 목록에 쌓이고 동시에 처리됩니다.
+복사해 온 유튜브 주소는 입력칸에 자동으로 채워집니다(받기 시작하지는 않습니다).
+연령 제한 영상은 `로그인` 에서 로그인된 브라우저를 고르면 됩니다.
+설정(화질·저장 위치 등)은 창을 닫을 때 저장되어 다음에 켤 때 그대로 돌아옵니다.
 
 ffmpeg 이 필요합니다(4K 는 영상·음성이 분리되어 제공되므로 병합 필수).
 설치돼 있지 않으면 경고를 띄우고 영상+음성이 한 파일인 포맷으로 자동 강등됩니다.

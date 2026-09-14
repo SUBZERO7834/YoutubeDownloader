@@ -20,14 +20,17 @@ jobs:
             label: Linux (x86_64)
             asset: ytdl4k-linux-x86_64
             built: dist/ytdl4k
+            gui_asset: ytdl4k-gui-linux-x86_64
           - os: windows-latest
             label: Windows (x86_64)
             asset: ytdl4k-windows-x86_64.exe
             built: dist/ytdl4k.exe
+            gui_asset: ytdl4k-gui-windows-x86_64
           - os: macos-latest
             label: macOS (Apple Silicon)
             asset: ytdl4k-macos-arm64
             built: dist/ytdl4k
+            gui_asset: ytdl4k-gui-macos-arm64
 
     steps:
       - uses: actions/checkout@v4
@@ -41,7 +44,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]" pyinstaller
 
+      - name: Qt 시스템 라이브러리 (리눅스)
+        if: matrix.os == 'ubuntu-latest'
+        # PySide6 휠에는 libEGL 같은 시스템 라이브러리가 들어 있지 않다.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libegl1 libxkbcommon-x11-0 libxcb-cursor0 \
+            libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libdbus-1-3
+
       - name: 테스트
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: pytest -q
 
       - name: ffmpeg 준비
@@ -51,8 +64,13 @@ jobs:
         run: |
           python scripts/fetch_ffmpeg.py || python scripts/fetch_ffmpeg.py --from-pypi
 
-      - name: 빌드
+      - name: 빌드 (명령줄)
         run: python scripts/build.py
+
+      - name: 빌드 (창 화면)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python scripts/build.py --gui --no-clean
 
       - name: 이름 정리
         shell: bash
@@ -64,6 +82,13 @@ jobs:
         with:
           name: ${{ matrix.asset }}
           path: out/${{ matrix.asset }}
+          if-no-files-found: error
+
+      # 창 화면은 폴더 하나가 통째로 결과물이다. upload-artifact 가 zip 으로 묶어 준다.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.gui_asset }}
+          path: dist/ytdl4k-gui
           if-no-files-found: error
 
       - name: 릴리스에 첨부 (태그 빌드만)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 
 from PySide6.QtWidgets import QApplication
@@ -20,12 +21,30 @@ def build_app(argv: list[str] | None = None) -> QApplication:
 
 
 def run(argv: list[str] | None = None) -> int:
+    args = list(sys.argv if argv is None else argv)
+    if "--smoke" in args:
+        return smoke()
+
     configure_output()
     app = build_app(argv)
     window = MainWindow()
     window.show()
     watch_clipboard(app, window)
     return app.exec()
+
+
+def smoke() -> int:
+    """창이 뜨는지만 확인하고 바로 끝낸다 — 묶은 실행 파일 점검용."""
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    configure_output()
+    app = build_app([])
+    window = MainWindow()
+    window.show()
+    app.processEvents()
+    if sys.stdout is not None:  # 윈도우 창 모드에서는 표준 출력이 없다
+        print(f"창 준비됨 · {window.statusBar().currentMessage()}")
+    window.queue.shutdown()
+    return 0
 
 
 def watch_clipboard(app: QApplication, window: MainWindow) -> None:

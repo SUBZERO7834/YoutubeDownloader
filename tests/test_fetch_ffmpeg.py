@@ -52,9 +52,15 @@ def test_from_path_tolerates_missing_ffprobe(tmp_path, dest):
     assert [p.name for p in copied] == ["ffmpeg"]
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="윈도우는 확장자로 실행 여부를 판단한다")
 def test_installed_binary_is_executable(dest):
     path = fetch_ffmpeg._install(b"payload", "ffmpeg")
     assert path.stat().st_mode & 0o111, "실행 권한이 없으면 병합 단계에서 실패한다"
+
+
+def test_installed_binary_keeps_its_bytes(dest):
+    path = fetch_ffmpeg._install(b"payload", "ffmpeg")
+    assert path.read_bytes() == b"payload"
 
 
 def test_why_names_the_signal():

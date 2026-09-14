@@ -22,6 +22,7 @@ import time
 from pathlib import Path
 
 from .. import __version__
+from ..console import configure_output
 from ..core.downloader import DEFAULT_TEMPLATE, Downloader, Progress
 from ..core.errors import AppError
 from ..core.extractor import YtDlpExtractor
@@ -129,6 +130,7 @@ def self_check(ffmpeg_location: str | None = None) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_output()
     try:
         return _run(build_parser().parse_args(argv))
     except BrokenPipeError:

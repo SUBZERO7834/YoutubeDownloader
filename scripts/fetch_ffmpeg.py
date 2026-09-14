@@ -26,6 +26,9 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from ytdl4k.console import configure_output  # noqa: E402
+
 DEST = Path(__file__).resolve().parent.parent / "ytdl4k" / "resources" / "ffmpeg"
 
 # 각 플랫폼의 공식(에 준하는) static 빌드. ffmpeg 프로젝트가 직접 링크하는 배포처다.
@@ -201,6 +204,7 @@ def _why(returncode: int) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_output()
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )

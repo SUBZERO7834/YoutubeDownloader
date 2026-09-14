@@ -177,3 +177,21 @@ def test_first_progress_event_survives_low_monotonic_clock(capsys, monkeypatch):
     reporter = _ProgressReporter(interval=60)
     reporter(Progress(stage=TaskState.DOWNLOADING, percent=1.0))
     assert "1.0%" in capsys.readouterr().err
+
+
+def test_output_survives_a_non_utf8_stream():
+    """윈도우 CI 재현: 리다이렉트된 출력이 cp1252 면 한글·✓ 에서 죽었다."""
+    import io
+
+    from ytdl4k.console import configure_output
+
+    raw = io.BytesIO()
+    stream = io.TextIOWrapper(raw, encoding="cp1252", errors="strict")
+    with pytest.raises(UnicodeEncodeError):
+        stream.write("✓ 저장 완료")
+        stream.flush()
+
+    stream = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
+    configure_output(stream)
+    stream.write("✓ 저장 완료")          # 더 이상 죽지 않는다
+    stream.flush()

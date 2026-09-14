@@ -17,6 +17,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from ytdl4k.console import configure_output  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 FFMPEG_DIR = ROOT / "ytdl4k" / "resources" / "ffmpeg"
 APP_NAME = "ytdl4k"
@@ -97,6 +100,7 @@ def smoke_test(binary: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_output()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--onedir", action="store_true", help="단일 파일 대신 폴더로 묶기 (시작이 빠름)")
     parser.add_argument("--no-clean", action="store_true", help="이전 빌드 캐시 재사용")

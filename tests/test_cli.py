@@ -1,4 +1,5 @@
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -195,3 +196,24 @@ def test_output_survives_a_non_utf8_stream():
     configure_output(stream)
     stream.write("✓ 저장 완료")  # 더 이상 죽지 않는다
     stream.flush()
+
+
+def test_gui_flag_explains_itself_when_unavailable(monkeypatch, capsys):
+    """창 화면이 없는 빌드에서도 다음에 뭘 하면 되는지는 알려 줘야 한다."""
+    import builtins
+
+    real_import = builtins.__import__
+
+    def without_pyside(name, *args, **kwargs):
+        if name.startswith("PySide6") or name.endswith("gui"):
+            raise ImportError("No module named 'PySide6'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", without_pyside)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+
+    from ytdl4k.cli.main import launch_gui
+
+    assert launch_gui() == 1
+    err = capsys.readouterr().err
+    assert "창 화면판" in err and "pip" not in err  # 실행 파일 사용자에게 pip 안내는 무용지물

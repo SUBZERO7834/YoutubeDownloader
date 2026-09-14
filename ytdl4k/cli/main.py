@@ -103,10 +103,14 @@ def launch_gui() -> int:
     try:
         from ..gui import run
     except ImportError as exc:
-        print(
-            f"창 화면을 띄우려면 PySide6 가 필요합니다: pip install PySide6\n원본 오류: {exc}",
-            file=sys.stderr,
+        # 실행 파일을 받아 쓰는 사람에게 pip 명령을 알려 줘 봐야 소용이 없다.
+        remedy = (
+            "창 화면판(ytdl4k-gui)을 따로 내려받아 실행해 주세요."
+            if getattr(sys, "frozen", False)
+            else 'pip install "ytdl4k[gui]" 로 설치할 수 있습니다.'
         )
+        print(f"이 실행 파일에는 창 화면이 들어 있지 않습니다.\n{remedy}", file=sys.stderr)
+        print(f"(원본 오류: {exc})", file=sys.stderr)
         return 1
     return run()
 

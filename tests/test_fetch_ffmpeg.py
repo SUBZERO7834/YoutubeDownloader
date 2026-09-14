@@ -74,3 +74,15 @@ def test_health_check_skips_foreign_platform_binary(tmp_path):
     if sys.platform == "win32":
         pytest.skip("윈도우에서는 .exe 가 실행 가능하다")
     assert fetch_ffmpeg.health_check(tmp_path / "ffmpeg.exe") == []
+
+
+def test_cli_build_leaves_the_gui_toolkit_out():
+    """명령줄 실행 파일에 PySide6 가 들어가면 용량이 두 배가 된다(43MB → 91MB).
+
+    cli/main.py 의 launch_gui() 안에 있는 지연 임포트를 PyInstaller 가
+    정적으로 따라가기 때문에, 명시적으로 빼 두지 않으면 조용히 다시 커진다.
+    """
+    import build as build_script
+
+    assert "PySide6" in build_script.CLI_ONLY_EXCLUDES
+    assert "shiboken6" in build_script.CLI_ONLY_EXCLUDES

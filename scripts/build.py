@@ -28,6 +28,12 @@ GUI_NAME = "ytdl4k-gui"
 # 쓰지 않는데 자동으로 딸려 들어가 용량만 키우는 것들.
 EXCLUDES = ["tkinter", "unittest", "pydoc", "doctest", "pytest", "test"]
 
+# 명령줄판에서만 빼는 것. cli/main.py 의 launch_gui() 안에 PySide6 임포트가 있고
+# PyInstaller 는 함수 안의 임포트까지 정적으로 따라가기 때문에, 빼 두지 않으면
+# 창 화면을 쓰지도 않는 명령줄 실행 파일이 두 배로 커진다(43MB → 91MB).
+# 실행 중에는 ImportError 를 잡아 "PySide6 가 필요합니다" 라고 안내한다.
+CLI_ONLY_EXCLUDES = ["PySide6", "shiboken6"]
+
 
 def bundled_binaries() -> list[Path]:
     if not FFMPEG_DIR.is_dir():
@@ -69,7 +75,7 @@ def build(onedir: bool = False, clean: bool = True, gui: bool = False) -> Path:
     ]
     if clean:
         cmd.append("--clean")
-    for module in EXCLUDES:
+    for module in EXCLUDES + ([] if gui else CLI_ONLY_EXCLUDES):
         cmd += ["--exclude-module", module]
     for binary in binaries:
         # dest 는 core/merger.py 의 _bundle_dir() 가 찾는 경로와 일치해야 한다.

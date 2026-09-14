@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import math
 import os
 import signal
 import subprocess
@@ -236,7 +237,8 @@ class _ProgressReporter:
 
     def __init__(self, interval: float = 0.2) -> None:
         self.interval = interval
-        self._last = 0.0
+        # 0 으로 두면 갓 부팅한 기기에서 time.monotonic() 이 작아 첫 이벤트가 묻힌다.
+        self._last = -math.inf
         self._active = False
 
     def __call__(self, progress: Progress) -> None:

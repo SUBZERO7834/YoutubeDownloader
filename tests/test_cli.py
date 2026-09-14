@@ -35,6 +35,7 @@ def test_bar_endpoints():
 
 
 def test_progress_reporter_throttles(capsys):
+    """첫 이벤트는 기기 가동 시간과 무관하게 항상 나가야 한다."""
     reporter = _ProgressReporter(interval=60)
     reporter(Progress(stage=TaskState.DOWNLOADING, percent=1.0))
     reporter(Progress(stage=TaskState.DOWNLOADING, percent=2.0))  # 억제됨
@@ -159,3 +160,15 @@ def test_broken_pipe_is_swallowed(monkeypatch):
     monkeypatch.setattr(cli.os, "dup2", lambda *a: redirected.append(a))
     assert main(["-F", "https://youtu.be/x"]) == 0
     assert redirected, "남은 출력을 /dev/null 로 돌리지 않았습니다"
+
+
+def test_first_progress_event_survives_low_monotonic_clock(capsys, monkeypatch):
+    """갓 부팅한 기기(= time.monotonic() 이 작음)에서도 첫 진행률은 나가야 한다.
+
+    스로틀 기준값을 0 으로 두면 `now - 0 < interval` 이 참이 되어 첫 이벤트가 묻혔다.
+    CI 러너에서만 재현되던 실패다.
+    """
+    monkeypatch.setattr("time.monotonic", lambda: 0.5)
+    reporter = _ProgressReporter(interval=60)
+    reporter(Progress(stage=TaskState.DOWNLOADING, percent=1.0))
+    assert "1.0%" in capsys.readouterr().err

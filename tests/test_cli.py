@@ -193,5 +193,5 @@ def test_output_survives_a_non_utf8_stream():
 
     stream = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
     configure_output(stream)
-    stream.write("✓ 저장 완료")          # 더 이상 죽지 않는다
+    stream.write("✓ 저장 완료")  # 더 이상 죽지 않는다
     stream.flush()

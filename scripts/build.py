@@ -88,15 +88,30 @@ def smoke_test(binary: Path) -> None:
     묶인 실행 파일이 실패하는 경우는 대부분 이 둘이므로 여기서 잡힌다.
     """
     for args in (["--version"], ["--help"]):
-        result = subprocess.run([str(binary), *args], capture_output=True, text=True, check=False)
+        result = _run(binary, args)
         if result.returncode not in (0, 2):
-            raise SystemExit(f"✗ 실행 실패: {args}\n{result.stdout}\n{result.stderr}")
+            raise SystemExit(f"✗ 실행 실패: {args} (종료코드 {result.returncode})\n{_output(result)}")
 
-    check = subprocess.run([str(binary), "--self-check"], capture_output=True, text=True, check=False)
-    print(check.stdout.rstrip())
+    check = _run(binary, ["--self-check"])
+    print(_output(check) or "(출력 없음)")
     if check.returncode != 0:
-        raise SystemExit(f"✗ 자가 진단 실패\n{check.stderr}")
+        raise SystemExit(f"✗ 자가 진단 실패 (종료코드 {check.returncode})")
     print("✓ 스모크 테스트 통과")
+
+
+def _run(binary: Path, args: list[str]) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [str(binary), *args],
+        capture_output=True,
+        text=True,
+        errors="replace",  # 실행 파일 출력의 인코딩 때문에 빌드가 죽지 않도록
+        check=False,
+    )
+
+
+def _output(result: subprocess.CompletedProcess) -> str:
+    """stdout·stderr 를 함께 본다. 플랫폼에 따라 한쪽이 비거나 None 일 수 있다."""
+    return "\n".join(part.rstrip() for part in (result.stdout, result.stderr) if part).strip()
 
 
 def main(argv: list[str] | None = None) -> int:

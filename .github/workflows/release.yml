@@ -71,4 +71,8 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${GITHUB_REF_NAME}" "out/${{ matrix.asset }}" --clobber
+        # 태그를 밀어도 릴리스는 자동 생성되지 않으므로 없으면 먼저 만든다.
+        run: |
+          gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 \
+            || gh release create "${GITHUB_REF_NAME}" --generate-notes --title "${GITHUB_REF_NAME}"
+          gh release upload "${GITHUB_REF_NAME}" "out/${{ matrix.asset }}" --clobber

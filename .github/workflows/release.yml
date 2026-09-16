@@ -72,23 +72,51 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python scripts/build.py --gui --no-clean
 
-      - name: 이름 정리
+      - name: 배포용으로 묶기
         shell: bash
+        # GitHub 아티팩트 zip 은 유닉스 실행 권한 비트를 보존하지 않는다.
+        # 맥·리눅스에서는 압축을 풀어도 실행이 안 되므로 tar.gz 로 한 번 더 묶는다.
+        # (윈도우는 확장자로 실행 여부를 판단하므로 zip 그대로도 문제없다.)
         run: |
           mkdir -p out
           cp "${{ matrix.built }}" "out/${{ matrix.asset }}"
+          if [ "${{ runner.os }}" != "Windows" ]; then
+            chmod +x "out/${{ matrix.asset }}"
+            tar -C out -czf "out/${{ matrix.asset }}.tar.gz" "${{ matrix.asset }}"
+            rm "out/${{ matrix.asset }}"
+            tar -C dist -czf "out/${{ matrix.gui_asset }}.tar.gz" ytdl4k-gui
+          fi
 
-      - uses: actions/upload-artifact@v4
+      - name: 올리기 (윈도우 — zip 그대로)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset }}
           path: out/${{ matrix.asset }}
           if-no-files-found: error
 
-      # 창 화면은 폴더 하나가 통째로 결과물이다. upload-artifact 가 zip 으로 묶어 준다.
-      - uses: actions/upload-artifact@v4
+      - name: 올리기 (윈도우 창 화면)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.gui_asset }}
           path: dist/ytdl4k-gui
+          if-no-files-found: error
+
+      - name: 올리기 (맥·리눅스 — 실행 권한을 지키는 tar.gz)
+        if: runner.os != 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: out/${{ matrix.asset }}.tar.gz
+          if-no-files-found: error
+
+      - name: 올리기 (맥·리눅스 창 화면)
+        if: runner.os != 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.gui_asset }}
+          path: out/${{ matrix.gui_asset }}.tar.gz
           if-no-files-found: error
 
       - name: 릴리스에 첨부 (태그 빌드만)
@@ -100,4 +128,6 @@ jobs:
         run: |
           gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 \
             || gh release create "${GITHUB_REF_NAME}" --generate-notes --title "${GITHUB_REF_NAME}"
-          gh release upload "${GITHUB_REF_NAME}" "out/${{ matrix.asset }}" --clobber
+          for file in out/*; do
+            gh release upload "${GITHUB_REF_NAME}" "$file" --clobber
+          done

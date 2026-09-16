@@ -51,6 +51,9 @@ def build(onedir: bool = False, clean: bool = True, gui: bool = False) -> Path:
     if binaries:
         total = sum(p.stat().st_size for p in binaries) / 2**20
         print(f"· 함께 묶을 바이너리: {', '.join(p.name for p in binaries)} ({total:.0f}MB)")
+        if not any(p.name.startswith("ffprobe") for p in binaries):
+            print("! ffprobe 가 없습니다. 결과 트랙 검증과 mkv 표지 넣기가 빠진 채로 묶입니다.")
+            print("  4K 기본 경로(vp9+opus)는 mkv 로 담기므로 표지 기능이 사실상 동작하지 않습니다.")
     else:
         print("! ytdl4k/resources/ffmpeg 가 비어 있습니다. 먼저 scripts/fetch_ffmpeg.py 를 실행하세요.")
         print("  (이대로 진행하면 시스템 ffmpeg 에 의존하는 실행 파일이 만들어집니다)")

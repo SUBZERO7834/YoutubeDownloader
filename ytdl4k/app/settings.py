@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from ..core.downloader import DEFAULT_TEMPLATE
-from ..core.models import CodecPolicy, Container, DownloadTarget
+from ..core.models import CodecPolicy, Container, DownloadTarget, ThumbnailMode
 
 APP_NAME = "ytdl4k"
 
@@ -48,6 +48,7 @@ class Settings:
     container: Container = Container.AUTO
     audio_only: bool = False
     prefer_hdr: bool = False
+    thumbnail: ThumbnailMode = ThumbnailMode.NONE
     concurrent_downloads: int = 3
     concurrent_fragments: int = 4
     filename_template: str = DEFAULT_TEMPLATE
@@ -60,6 +61,7 @@ class Settings:
         self.output_dir = Path(self.output_dir).expanduser()
         self.codec_policy = CodecPolicy(self.codec_policy)
         self.container = Container(self.container)
+        self.thumbnail = ThumbnailMode(self.thumbnail)
 
     def target(self) -> DownloadTarget:
         """설정에서 '무엇을 받을지' 요청을 만든다."""
@@ -69,6 +71,7 @@ class Settings:
             container=self.container,
             audio_only=self.audio_only,
             prefer_hdr=self.prefer_hdr,
+            thumbnail=self.thumbnail,
         )
 
     # ------------------------------------------------------------------ 저장/불러오기

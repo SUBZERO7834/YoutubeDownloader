@@ -157,6 +157,14 @@ class CodecPolicy(StrEnum):
         return len(order) - order.index(codec) if codec in order else 0
 
 
+class ThumbnailMode(StrEnum):
+    """썸네일을 어떻게 할지."""
+
+    NONE = "none"  # 받지 않는다
+    FILE = "file"  # 영상 옆에 그림 파일로 저장
+    EMBED = "embed"  # 영상·음원 안에 표지로 넣는다
+
+
 class Container(StrEnum):
     AUTO = "auto"
     MP4 = "mp4"
@@ -182,3 +190,4 @@ class DownloadTarget:
     container: Container = Container.AUTO
     audio_only: bool = False
     prefer_hdr: bool = False
+    thumbnail: ThumbnailMode = ThumbnailMode.NONE

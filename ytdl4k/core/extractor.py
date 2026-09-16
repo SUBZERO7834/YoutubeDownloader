@@ -16,6 +16,7 @@ from .errors import (
     LoginRequired,
     NetworkError,
     PlaylistNotSupported,
+    PostProcessingFailed,
     VideoUnavailable,
 )
 from .models import VideoInfo
@@ -23,6 +24,7 @@ from .models import VideoInfo
 # yt-dlp 오류 메시지 → 도메인 예외. 위에서부터 먼저 걸리는 것을 쓴다.
 _ERROR_PATTERNS: list[tuple[tuple[str, ...], type[AppError]]] = [
     (("drm", "protected by drm"), DrmProtected),
+    (("postprocessing:", "unable to embed"), PostProcessingFailed),
     (
         (
             "proxyerror",

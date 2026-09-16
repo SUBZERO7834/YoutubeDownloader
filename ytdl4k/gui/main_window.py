@@ -32,7 +32,7 @@ from ..app.queue import DownloadQueue, DownloadTask
 from ..app.settings import Settings
 from ..core.extractor import YtDlpExtractor
 from ..core.merger import find_ffmpeg
-from ..core.models import CodecPolicy, TaskState
+from ..core.models import CodecPolicy, TaskState, ThumbnailMode
 from .bridge import QueueSignals
 from .model import PROGRESS, TITLE, ProgressDelegate, QueueModel
 
@@ -51,6 +51,12 @@ CODEC_CHOICES: list[tuple[str, CodecPolicy]] = [
     ("화질 우선", CodecPolicy.QUALITY),
     ("용량 우선", CodecPolicy.EFFICIENCY),
     ("호환성 우선", CodecPolicy.COMPATIBILITY),
+]
+
+THUMBNAIL_CHOICES: list[tuple[str, ThumbnailMode]] = [
+    ("안 함", ThumbnailMode.NONE),
+    ("영상에 넣기", ThumbnailMode.EMBED),
+    ("그림 파일로", ThumbnailMode.FILE),
 ]
 
 # 연령 제한·멤버십 영상은 로그인된 브라우저의 쿠키가 있어야 목록조차 보이지 않는다.
@@ -114,6 +120,13 @@ class MainWindow(QMainWindow):
             # Qt 를 거치면 StrEnum 이 평범한 str 로 돌아온다. 값으로 넣고 읽을 때 되돌린다.
             self.codec_box.addItem(label, policy.value)
         self.audio_only = QCheckBox("소리만")
+        self.thumbnail_box = QComboBox()
+        for label, mode in THUMBNAIL_CHOICES:
+            self.thumbnail_box.addItem(label, mode.value)
+        self.thumbnail_box.setToolTip(
+            "영상에 넣으면 플레이어·파일 탐색기에서 표지로 보입니다.\n"
+            "webm 에는 표지를 넣을 수 없어 mkv 로 담깁니다(화질 손실 없음)."
+        )
         self.cookie_box = QComboBox()
         for label, browser in COOKIE_CHOICES:
             self.cookie_box.addItem(label, browser)
@@ -125,6 +138,9 @@ class MainWindow(QMainWindow):
         options.addWidget(self.codec_box)
         options.addSpacing(8)
         options.addWidget(self.audio_only)
+        options.addSpacing(8)
+        options.addWidget(QLabel("썸네일"))
+        options.addWidget(self.thumbnail_box)
         options.addSpacing(8)
         options.addWidget(QLabel("로그인"))
         options.addWidget(self.cookie_box)
@@ -192,6 +208,7 @@ class MainWindow(QMainWindow):
         self.quality_box.currentIndexChanged.connect(self._store_settings)
         self.codec_box.currentIndexChanged.connect(self._store_settings)
         self.audio_only.toggled.connect(self._store_settings)
+        self.thumbnail_box.currentIndexChanged.connect(self._store_settings)
         self.cookie_box.currentIndexChanged.connect(self._on_cookie_changed)
         self.table.selectionModel().selectionChanged.connect(self._on_selection_changed)
         self.signals.task_changed.connect(self._on_task_changed)
@@ -276,7 +293,12 @@ class MainWindow(QMainWindow):
         if task.error is not None:
             self._show_detail(task.error.message, task.error.hint, error=True)
         elif task.output_path is not None:
-            self._show_detail("저장 완료", str(task.output_path))
+            hint = str(task.output_path)
+            if task.note:
+                hint = f"{task.note}<br>{hint}"
+            self._show_detail("저장 완료", hint)
+        elif task.note:
+            self._show_detail("받는 중", task.note)
         elif task.selection is not None:
             self._show_detail("받는 중", task.selection.describe())
         else:
@@ -315,6 +337,8 @@ class MainWindow(QMainWindow):
         index = self.codec_box.findData(CodecPolicy(self.settings.codec_policy).value)
         self.codec_box.setCurrentIndex(max(0, index))
         self.audio_only.setChecked(self.settings.audio_only)
+        index = self.thumbnail_box.findData(ThumbnailMode(self.settings.thumbnail).value)
+        self.thumbnail_box.setCurrentIndex(max(0, index))
         index = self.cookie_box.findData(self.settings.cookies_from_browser)
         self.cookie_box.setCurrentIndex(max(0, index))
         self.folder_label.setText(self._folder_text())
@@ -330,6 +354,7 @@ class MainWindow(QMainWindow):
         self.settings.max_height = self.quality_box.currentData()
         self.settings.codec_policy = CodecPolicy(self.codec_box.currentData())
         self.settings.audio_only = self.audio_only.isChecked()
+        self.settings.thumbnail = ThumbnailMode(self.thumbnail_box.currentData())
         self.queue.settings = self.settings
 
     def _folder_text(self) -> str:

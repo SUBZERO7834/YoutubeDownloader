@@ -114,6 +114,23 @@ def test_codec_and_audio_only_reach_the_settings(window):
     assert window.settings.target().audio_only is True
 
 
+def test_thumbnail_choice_reaches_the_settings(window):
+    from ytdl4k.core.models import ThumbnailMode
+
+    window.thumbnail_box.setCurrentIndex(window.thumbnail_box.findData(ThumbnailMode.EMBED.value))
+    assert window.settings.thumbnail is ThumbnailMode.EMBED
+    assert window.settings.target().thumbnail is ThumbnailMode.EMBED
+
+
+def test_thumbnail_downgrade_is_shown_to_the_user(window):
+    """표지를 못 넣게 됐으면 조용히 넘어가면 안 된다."""
+    task = add_fake(window, "a", TaskState.DONE, 100)
+    task.output_path = Path("/tmp/영상.mkv")
+    task.note = "ffprobe 가 없어 .mkv 에 표지를 넣을 수 없습니다. 그림 파일로 따로 저장합니다."
+    window.table.selectRow(0)
+    assert "ffprobe" in window.detail_label.text()
+
+
 def test_choosing_a_browser_rebuilds_the_extractor(window):
     """쿠키 설정은 추출기를 새로 만들어야 실제로 적용된다."""
     before = window.queue.extractor

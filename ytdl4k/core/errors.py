@@ -119,6 +119,18 @@ class DownloadFailed(AppError):
         super().__init__("다운로드에 실패했습니다.", hint=detail)
 
 
+class PostProcessingFailed(AppError):
+    """받기는 끝났는데 마무리(병합·표지 넣기)에서 실패. 영상 파일은 남아 있을 수 있다."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(
+            "영상은 받았지만 마무리 작업에 실패했습니다.",
+            hint="저장 폴더에 파일이 남아 있는지 확인해 주세요. "
+            "썸네일 넣기를 끄면 다시 시도할 수 있습니다.\n"
+            f"원본 오류: {detail}",
+        )
+
+
 class DownloadCanceled(AppError):
     """사용자 취소. ``.part`` 파일은 남겨 두어 이어받기에 쓴다."""
 

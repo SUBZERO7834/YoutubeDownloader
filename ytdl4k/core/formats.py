@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .errors import NoSuitableFormat
-from .models import Container, DownloadTarget, VideoFormat, VideoInfo
+from .models import Container, DownloadTarget, ThumbnailMode, VideoFormat, VideoInfo
 
 # 컨테이너별 "재생 호환성이 검증된" 코덱 조합.
 # ffmpeg 7.x 는 vp9+opus 를 mp4 에 담는 것도 허용하므로 이 목록은 먹싱 가능 여부가 아니라
@@ -19,6 +19,11 @@ _MP4_SAFE_VIDEO = {"avc1", "av01"}
 _MP4_SAFE_AUDIO = {"mp4a"}
 _WEBM_SAFE_VIDEO = {"vp9", "av01"}
 _WEBM_SAFE_AUDIO = {"opus"}
+
+# yt-dlp 가 표지 그림을 넣을 수 있는 컨테이너 (embedthumbnail.py 기준).
+# webm 은 빠져 있다 — 우리 4K 기본값이 webm 이므로 썸네일을 넣을 때는 mkv 로 돌린다.
+# 같은 스트림을 다른 그릇에 담는 것뿐이라 화질·음질 손실은 없다.
+_EMBED_SAFE_CONTAINERS = {"mp4", "m4a", "m4v", "mov", "mkv", "mka", "mp3", "ogg", "opus", "flac"}
 
 
 @dataclass(frozen=True)
@@ -93,8 +98,26 @@ def _select_audio_only(info: VideoInfo, target: DownloadTarget) -> Selection:
             "오디오 전용 스트림을 찾지 못했습니다.",
             hint="영상까지 받은 뒤 오디오를 추출해야 할 수 있습니다.",
         )
-    audio = max(audios, key=lambda f: (target.codec_policy.audio_rank(f.audio_codec), f.tbr or 0))
+    audio = max(
+        audios,
+        key=lambda f: (
+            _embed_fit(f, target),
+            target.codec_policy.audio_rank(f.audio_codec),
+            f.tbr or 0,
+        ),
+    )
     return Selection(video=None, audio=audio, container=_audio_container(audio))
+
+
+def _embed_fit(audio: VideoFormat, target: DownloadTarget) -> int:
+    """표지를 넣으려면 AAC(m4a) 여야 한다. opus 는 webm 에 담겨 표지를 못 넣는다.
+
+    코덱을 바꾸는 것이 아니라 YouTube 가 함께 주는 다른 트랙을 고르는 것이므로
+    재인코딩은 일어나지 않는다.
+    """
+    if target.thumbnail is not ThumbnailMode.EMBED:
+        return 0
+    return 1 if audio.audio_codec == "mp4a" else 0
 
 
 def _audio_container(audio: VideoFormat) -> str:
@@ -166,12 +189,19 @@ def pick_container(video: VideoFormat | None, audio: VideoFormat | None, target:
     v = video.video_codec
     a = audio.audio_codec if audio else None
     if video.is_combined:
-        return video.ext or "mp4"
+        return _for_thumbnail(video.ext or "mp4", target)
     if v in _MP4_SAFE_VIDEO and (a is None or a in _MP4_SAFE_AUDIO):
         return "mp4"
     if v in _WEBM_SAFE_VIDEO and (a is None or a in _WEBM_SAFE_AUDIO):
-        return "webm"
+        return _for_thumbnail("webm", target)
     return "mkv"  # 섞인 조합(예: avc1 + opus)은 mkv 가 가장 안전하다
+
+
+def _for_thumbnail(container: str, target: DownloadTarget) -> str:
+    """썸네일을 넣어야 하는데 담을 수 없는 그릇이면 mkv 로 바꾼다."""
+    if target.thumbnail is ThumbnailMode.EMBED and container not in _EMBED_SAFE_CONTAINERS:
+        return "mkv"
+    return container
 
 
 def list_downloadable(info: VideoInfo) -> list[VideoFormat]:

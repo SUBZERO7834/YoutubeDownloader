@@ -7,6 +7,7 @@ UI 계층(CLI/GUI)은 ``on_progress`` 콜백만 붙이면 된다.
 
 from __future__ import annotations
 
+import importlib.util
 import shutil
 import threading
 from collections.abc import Callable
@@ -18,9 +19,38 @@ from .errors import DownloadCanceled, DownloadFailed, InsufficientDiskSpace
 from .extractor import translate_error
 from .formats import Selection
 from .merger import FfmpegTools, verify_output
-from .models import TaskState, VideoInfo
+from .models import TaskState, ThumbnailMode, VideoInfo
 
 DEFAULT_TEMPLATE = "%(title)s [%(id)s].%(ext)s"
+
+# 표지를 넣는 방법이 컨테이너마다 다르다 (yt-dlp embedthumbnail.py 기준).
+# mp4 계열은 mutagen(순수 파이썬)으로 처리되고, mkv 는 ffmpeg 이 스트림을 읽어야 해서
+# ffprobe 가 필요하다. webm 은 아예 지원되지 않는다.
+_MUTAGEN_CONTAINERS = {"mp4", "m4a", "m4v", "mov"}
+_FFPROBE_CONTAINERS = {"mkv", "mka"}
+
+
+def embed_blocker(container: str, ffmpeg: FfmpegTools | None) -> str | None:
+    """표지를 넣을 수 없다면 그 이유를, 넣을 수 있으면 None 을 돌려준다.
+
+    "넣을 수 없다" 는 말만으로는 사용자가 무엇을 고쳐야 할지 알 수 없다.
+    컨테이너 탓인지 도구가 없어서인지를 구분해서 알려 준다.
+    """
+    if ffmpeg is None:
+        return "ffmpeg 이 없어 표지를 넣을 수 없습니다"
+    if container in _MUTAGEN_CONTAINERS:
+        if importlib.util.find_spec("mutagen") is None:
+            return "mutagen 이 없어 표지를 넣을 수 없습니다"
+        return None
+    if container in _FFPROBE_CONTAINERS:
+        if ffmpeg.ffprobe is None:
+            return f"ffprobe 가 없어 .{container} 에 표지를 넣을 수 없습니다"
+        return None
+    return f".{container} 컨테이너에는 표지를 넣을 수 없습니다"
+
+
+def can_embed_thumbnail(container: str, ffmpeg: FfmpegTools | None) -> bool:
+    return embed_blocker(container, ffmpeg) is None
 
 
 @dataclass(frozen=True)
@@ -52,6 +82,7 @@ class Downloader:
         concurrent_fragments: int = 4,
         temp_dir: Path | None = None,
         overwrite: bool = False,
+        thumbnail: ThumbnailMode = ThumbnailMode.NONE,
         on_progress: ProgressCallback | None = None,
     ) -> None:
         self.output_dir = Path(output_dir)
@@ -61,6 +92,7 @@ class Downloader:
         self.concurrent_fragments = max(1, concurrent_fragments)
         self.temp_dir = temp_dir
         self.overwrite = overwrite
+        self.thumbnail = thumbnail
         self.on_progress = on_progress
 
     # ------------------------------------------------------------------ 공개 API
@@ -121,6 +153,18 @@ class Downloader:
 
     # ------------------------------------------------------------------ 내부
 
+    def effective_thumbnail(self, selection: Selection) -> ThumbnailMode:
+        """실제로 할 수 있는 처리.
+
+        넣을 수 없는 조합이면 실패시키지 않고 그림 파일로 따로 저장한다 —
+        영상까지 못 받게 되는 것보다 낫고, 사용자가 잃는 것도 없다.
+        """
+        if self.thumbnail is ThumbnailMode.EMBED and not can_embed_thumbnail(
+            selection.container, self.ffmpeg
+        ):
+            return ThumbnailMode.FILE
+        return self.thumbnail
+
     def _build_options(self, selection: Selection, cancel_event: threading.Event | None) -> dict[str, Any]:
         opts: dict[str, Any] = dict(self.base_options)
         opts.update(
@@ -138,6 +182,16 @@ class Downloader:
                 "overwrites": self.overwrite,
             }
         )
+        thumbnail = self.effective_thumbnail(selection)
+        if thumbnail is not ThumbnailMode.NONE:
+            opts["writethumbnail"] = True
+        if thumbnail is ThumbnailMode.EMBED:
+            opts["postprocessors"] = [
+                *opts.get("postprocessors", []),
+                # already_have_thumbnail=False → 넣은 뒤 남은 그림 파일을 지운다.
+                {"key": "EmbedThumbnail", "already_have_thumbnail": False},
+            ]
+
         if selection.needs_merge:
             opts["merge_output_format"] = selection.container
         if self.ffmpeg is not None:

@@ -16,12 +16,12 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..core.downloader import Downloader, Progress
+from ..core.downloader import Downloader, Progress, embed_blocker
 from ..core.errors import AppError, DownloadCanceled
 from ..core.extractor import Extractor, YtDlpExtractor
 from ..core.formats import Selection, select
 from ..core.merger import FfmpegTools
-from ..core.models import TaskState, VideoInfo
+from ..core.models import TaskState, ThumbnailMode, VideoInfo
 from .settings import Settings
 
 _ids = itertools.count(1)
@@ -37,6 +37,7 @@ class DownloadTask:
     progress: Progress = field(default_factory=lambda: Progress(stage=TaskState.PENDING))
     output_path: Path | None = None
     error: AppError | None = None
+    note: str | None = None  # 실패는 아니지만 알아야 할 것 (예: 표지를 못 넣음)
     cancel: threading.Event = field(default_factory=threading.Event)
 
     @property
@@ -147,6 +148,7 @@ class DownloadQueue:
             self._set_state(task, TaskState.DOWNLOADING)
 
             downloader = self._downloader_factory(task)
+            self._note_thumbnail_downgrade(task, downloader)
             downloader.check_space(task.selection, task.info.duration)
             task.output_path = downloader.download(task.info, task.selection, cancel_event=task.cancel)
             self._finish(task, TaskState.DONE)
@@ -157,6 +159,14 @@ class DownloadQueue:
         except Exception as err:  # 예상 못 한 오류로 큐 전체가 멈추면 안 된다
             self._finish(task, TaskState.FAILED, error=AppError(str(err)))
 
+    def _note_thumbnail_downgrade(self, task: DownloadTask, downloader: Downloader) -> None:
+        """표지를 못 넣게 됐으면 조용히 넘어가지 말고 이유를 남긴다."""
+        if self.settings.thumbnail is not ThumbnailMode.EMBED or task.selection is None:
+            return
+        blocker = embed_blocker(task.selection.container, self.ffmpeg)
+        if blocker:
+            task.note = f"{blocker}. 그림 파일로 따로 저장합니다."
+
     def _build_downloader(self, task: DownloadTask) -> Downloader:
         return Downloader(
             output_dir=self.settings.output_dir,
@@ -165,6 +175,7 @@ class DownloadQueue:
             ffmpeg=self.ffmpeg,
             concurrent_fragments=self.settings.concurrent_fragments,
             overwrite=self.settings.overwrite,
+            thumbnail=self.settings.thumbnail,
             on_progress=lambda progress: self._on_progress(task, progress),
         )
 

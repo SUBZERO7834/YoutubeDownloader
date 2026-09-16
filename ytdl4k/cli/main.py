@@ -23,12 +23,19 @@ from pathlib import Path
 
 from .. import __version__
 from ..console import configure_output
-from ..core.downloader import DEFAULT_TEMPLATE, Downloader, Progress
+from ..core.downloader import DEFAULT_TEMPLATE, Downloader, Progress, embed_blocker
 from ..core.errors import AppError
 from ..core.extractor import YtDlpExtractor
 from ..core.formats import list_downloadable, select
 from ..core.merger import find_ffmpeg
-from ..core.models import CodecPolicy, Container, DownloadTarget, TaskState, VideoInfo
+from ..core.models import (
+    CodecPolicy,
+    Container,
+    DownloadTarget,
+    TaskState,
+    ThumbnailMode,
+    VideoInfo,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -59,6 +66,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--audio-only", action="store_true", help="오디오만 받기")
     p.add_argument("--hdr", action="store_true", help="HDR 스트림이 있으면 우선 선택")
+    p.add_argument(
+        "--thumbnail",
+        choices=[m.value for m in ThumbnailMode],
+        default=ThumbnailMode.NONE.value,
+        help="썸네일: none=안 함, file=그림 파일로 저장, embed=영상 안에 표지로 넣기",
+    )
     p.add_argument("--template", default=DEFAULT_TEMPLATE, help="파일명 템플릿")
     p.add_argument("--overwrite", action="store_true", help="같은 파일이 있으면 덮어쓰기")
     p.add_argument(
@@ -115,6 +128,16 @@ def launch_gui() -> int:
     return run()
 
 
+def _thumbnail_support(tools) -> str:
+    """어떤 컨테이너에 표지를 넣을 수 있는지 한 줄로."""
+    ok = [c for c in ("mp4", "m4a", "mkv") if not embed_blocker(c, tools)]
+    if not ok:
+        return "불가 — 그림 파일로만 저장됩니다"
+    blocked = [c for c in ("mp4", "m4a", "mkv") if embed_blocker(c, tools)]
+    text = ", ".join(f".{c}" for c in ok) + " 가능"
+    return text + (f" (.{'/.'.join(blocked)} 불가)" if blocked else "")
+
+
 def self_check(ffmpeg_location: str | None = None) -> int:
     """구성 진단.
 
@@ -142,7 +165,8 @@ def self_check(ffmpeg_location: str | None = None) -> int:
     first_line = version.stdout.splitlines()[0] if version.stdout else "(버전 확인 실패)"
     say(f"ffmpeg        {tools.ffmpeg}")
     say(f"              {first_line}")
-    say(f"ffprobe       {tools.ffprobe or '없음 — 병합은 되지만 결과 트랙 검증은 생략'}")
+    say(f"ffprobe       {tools.ffprobe or '없음 — 결과 트랙 검증과 mkv 표지 넣기를 건너뜁니다'}")
+    say(f"썸네일 넣기   {_thumbnail_support(tools)}")
     say("\n4K 다운로드에 필요한 구성이 모두 준비됐습니다.")
     return 0
 
@@ -175,6 +199,7 @@ def _run(args: argparse.Namespace) -> int:
         container=Container(args.container),
         audio_only=args.audio_only,
         prefer_hdr=args.hdr,
+        thumbnail=ThumbnailMode(args.thumbnail),
     )
     ffmpeg = find_ffmpeg(args.ffmpeg_location)
     if ffmpeg is None:
@@ -226,8 +251,13 @@ def _handle_url(url, args, target, extractor, ffmpeg) -> int:
         ffmpeg=ffmpeg,
         concurrent_fragments=args.concurrent_fragments,
         overwrite=args.overwrite,
+        thumbnail=target.thumbnail,
         on_progress=reporter,
     )
+    if target.thumbnail is ThumbnailMode.EMBED:
+        blocker = embed_blocker(selection.container, ffmpeg)
+        if blocker:
+            print(f"  ! {blocker}. 그림 파일로 따로 저장합니다.", file=sys.stderr)
     downloader.check_space(selection, info.duration)
 
     cancel = threading.Event()
